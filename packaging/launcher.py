@@ -43,4 +43,15 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except BaseException:
+        import traceback
+        traceback.print_exc()
+        try:
+            input("\n[debug build] Press Enter to close this window...")
+        except EOFError:
+            pass
+        sys.exit(1)
