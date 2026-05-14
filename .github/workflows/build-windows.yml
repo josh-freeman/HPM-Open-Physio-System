@@ -1,0 +1,75 @@
+name: build-windows
+
+# Triggers:
+#   * push of a tag like v1.2.3   -> build + create a public Release with the .exe attached
+#   * manual "Run workflow" click -> build + upload artifact only (for testing)
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create Releases
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: x64
+          cache: pip
+
+      - name: Install runtime + build deps
+        shell: cmd
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          python -m pip install -r requirements.txt
+          python -m pip install "pyinstaller>=6.6"
+
+      - name: Build HPM.exe (PyInstaller)
+        shell: cmd
+        run: pyinstaller --noconfirm --clean packaging\HPM.spec
+
+      - name: Install Inno Setup
+        shell: cmd
+        run: choco install innosetup --no-progress -y
+
+      - name: Build HPM-Setup.exe (Inno Setup)
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\HPM_installer.iss
+
+      - name: Smoke-test the installer exists
+        shell: cmd
+        run: |
+          if not exist packaging\Output\HPM-Setup.exe (
+            echo [error] installer was not produced
+            exit /b 1
+          )
+          dir packaging\Output
+
+      - name: Upload installer as workflow artifact (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: HPM-Setup
+          path: packaging/Output/HPM-Setup.exe
+          if-no-files-found: error
+
+      - name: Publish GitHub Release (tag pushes)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            packaging/Output/HPM-Setup.exe
