@@ -25,7 +25,8 @@ WizardStyle=modern
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayIcon={app}\{#MyAppExeName}
-SetupIconFile=icon.ico
+; SetupIconFile is intentionally omitted; drop a 256x256 packaging\icon.ico
+; and re-add the line above to brand the installer.
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
