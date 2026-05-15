@@ -1387,15 +1387,17 @@ class SetupWizard(tk.Frame):
         self._content = tk.Frame(self, bg=BG)
         self._content.pack(fill="both", expand=True, padx=20, pady=10)
 
-        # Nav
-        nav = tk.Frame(self, bg=BG, pady=10)
+        # Nav — bigger buttons in Participant Mode for older readers.
+        nav = tk.Frame(self, bg=BG, pady=14 if self.mode == "participant" else 10)
         nav.pack(fill="x", padx=20)
+        is_p = (self.mode == "participant")
+        nav_w = 18 if is_p else 12
         self._back_btn = styled_button(nav, "← Back", self._prev,
-                                       style="ghost", width=12)
-        self._back_btn.pack(side="left")
+                                       style="ghost", width=nav_w)
+        self._back_btn.pack(side="left", ipady=8 if is_p else 0)
         self._next_btn = styled_button(nav, "Next →", self._next,
-                                       style="primary", width=14)
-        self._next_btn.pack(side="right")
+                                       style="primary", width=nav_w + 2)
+        self._next_btn.pack(side="right", ipady=8 if is_p else 0)
 
         # Keyboard shortcuts: Enter advances, Esc/Shift-Tab goes back.
         # Scoped to the wizard frame so they don't interfere when the user
@@ -1431,13 +1433,31 @@ class SetupWizard(tk.Frame):
 
         self._back_btn.config(state="normal" if idx > 0 else "disabled")
         is_last = idx == len(self.steps) - 1
-        self._next_btn.config(text="Launch ▶" if is_last else "Next →",
-                              state="normal")
+        # Friendlier label on the final step in Participant Mode.
+        if is_last:
+            final_label = "Begin →" if self.mode == "participant" else "Launch ▶"
+        else:
+            final_label = "Next →"
+        self._next_btn.config(text=final_label, state="normal")
+
+        # Larger title + description in Participant Mode for older readers.
+        is_p = (self.mode == "participant")
+        title_size = 28 if is_p else 20
+        desc_size  = 14 if is_p else 10
+
+        # Participant Mode: explicit "Step X of N" line above the title.
+        if is_p:
+            tk.Label(
+                self._content,
+                text=f"Step {idx + 1} of {len(self.steps)}",
+                bg=BG, fg=ACCENT2,
+                font=(FONT_FAMILY, 11, "bold"),
+            ).pack(anchor="w", pady=(2, 0))
 
         tk.Label(self._content, text=title, bg=BG, fg=TEXT,
-                 font=(FONT_FAMILY, 20, "bold")).pack(anchor="w", pady=(6, 2))
+                 font=(FONT_FAMILY, title_size, "bold")).pack(anchor="w", pady=(6, 2))
         tk.Label(self._content, text=desc, bg=BG, fg=TEXT2,
-                 font=(FONT_FAMILY, 10)).pack(anchor="w", pady=(0, 10))
+                 font=(FONT_FAMILY, desc_size)).pack(anchor="w", pady=(0, 10))
         separator(self._content).pack(fill="x", pady=6)
 
         t = title.lower()
@@ -1461,18 +1481,73 @@ class SetupWizard(tk.Frame):
 
     def _step_subject(self):
         if self.mode == "participant":
+            # Welcome card — warm tone, concrete expectations.
+            welcome = tk.Frame(
+                self._content, bg=BG2, padx=22, pady=20,
+                highlightthickness=1, highlightbackground=BORDER,
+            )
+            welcome.pack(fill="x", pady=(0, 14))
+            tk.Label(
+                welcome,
+                text="Welcome — thank you for being here.",
+                bg=BG2, fg=ACCENT2,
+                font=(FONT_FAMILY, 18, "bold"),
+                anchor="w",
+            ).pack(fill="x")
+            tk.Label(
+                welcome,
+                text=(
+                    "This session takes about 30 minutes. We'll attach two "
+                    "small sensors — one to read your heartbeat, one to "
+                    "read tiny changes in your skin — and then you'll do a "
+                    "short computer task.\n\n"
+                    "There are no wrong answers. You can ask the researcher "
+                    "to stop at any time."
+                ),
+                bg=BG2, fg=TEXT,
+                font=(FONT_FAMILY, 14),
+                justify="left", wraplength=720, anchor="w",
+            ).pack(fill="x", pady=(8, 0))
+
+            # Participant ID — large input, clear instruction.
+            id_frm = tk.Frame(
+                self._content, bg=BG2, padx=22, pady=18,
+                highlightthickness=1, highlightbackground=BORDER,
+            )
+            id_frm.pack(fill="x", pady=(0, 6))
+            tk.Label(
+                id_frm,
+                text="Participant ID",
+                bg=BG2, fg=TEXT,
+                font=(FONT_FAMILY, 14, "bold"),
+                anchor="w",
+            ).pack(fill="x")
+            tk.Label(
+                id_frm,
+                text="The researcher gave you this number — type it here.",
+                bg=BG2, fg=TEXT2,
+                font=(FONT_FAMILY, 12),
+                anchor="w",
+            ).pack(fill="x", pady=(2, 8))
+            ent = tk.Entry(
+                id_frm, textvariable=self.subject_var,
+                font=(FONT_FAMILY, 18, "bold"),
+                bg=BG3, fg=TEXT, insertbackground=TEXT,
+                relief="flat", bd=8, width=18, justify="center",
+            )
+            ent.pack(anchor="w", pady=(0, 4))
+            ent.focus_set()
             tk.Label(
                 self._content,
-                text=("Welcome to the HPM Study!\n\n"
-                      "This session will record your heart rate and skin\n"
-                      "conductance while you complete a short computer task.\n\n"
-                      "Enter your Participant ID below (given by your researcher)."),
-                bg=BG, fg=TEXT, font=(FONT_FAMILY, 11),
-                justify="left"
-            ).pack(anchor="w")
-        else:
-            tk.Label(self._content, text="Session Setup", bg=BG, fg=TEXT,
-                     font=(FONT_FAMILY, 13, "bold")).pack(anchor="w")
+                text="When you're ready, press the big Next → button at the bottom right.",
+                bg=BG, fg=TEXT2,
+                font=(FONT_FAMILY, 12, "italic"),
+            ).pack(anchor="w", pady=(8, 0))
+            return
+
+        # ── RA Mode ────────────────────────────────────────────────────────
+        tk.Label(self._content, text="Session Setup", bg=BG, fg=TEXT,
+                 font=(FONT_FAMILY, 13, "bold")).pack(anchor="w")
 
         frm = card_frame(self._content)
         frm.pack(fill="x", pady=10)
@@ -1488,17 +1563,16 @@ class SetupWizard(tk.Frame):
         ent.pack(side="left", padx=8)
         ent.focus_set()
 
-        if self.mode == "ra":
-            row2 = tk.Frame(frm, bg=BG2)
-            row2.pack(fill="x", padx=12, pady=(0, 4))
-            tk.Label(row2, text="Session Notes:", bg=BG2, fg=TEXT,
-                     font=(FONT_FAMILY, 11, "bold"), width=16,
-                     anchor="w").pack(side="left", anchor="n")
-            self._notes = tk.Text(
-                frm, height=3, bg=BG3, fg=TEXT, font=(FONT_FAMILY, 11),
-                relief="flat", bd=4, insertbackground=TEXT
-            )
-            self._notes.pack(fill="x", padx=12, pady=(0, 10))
+        row2 = tk.Frame(frm, bg=BG2)
+        row2.pack(fill="x", padx=12, pady=(0, 4))
+        tk.Label(row2, text="Session Notes:", bg=BG2, fg=TEXT,
+                 font=(FONT_FAMILY, 11, "bold"), width=16,
+                 anchor="w").pack(side="left", anchor="n")
+        self._notes = tk.Text(
+            frm, height=3, bg=BG3, fg=TEXT, font=(FONT_FAMILY, 11),
+            relief="flat", bd=4, insertbackground=TEXT
+        )
+        self._notes.pack(fill="x", padx=12, pady=(0, 10))
 
     def _step_hardware(self):
         items = [
@@ -1545,20 +1619,151 @@ class SetupWizard(tk.Frame):
             v.trace_add("write", _check)
 
     def _step_electrode(self):
-        txt = tk.Text(self._content, bg=BG3, fg=TEXT, font=("Courier", 10),
-                      relief="flat", bd=0, height=22, wrap="word",
-                      insertbackground=TEXT)
-        txt.insert("1.0", ELECTRODE_TEXT)
-        txt.config(state="disabled")
-        txt.pack(fill="x", pady=4)
+        # Proper visual electrode guide — replaces the old monospace
+        # ASCII-art ELECTRODE_TEXT block. Color-coded leads, sans-serif
+        # tips, grouped sections.
+        wrap = tk.Frame(self._content, bg=BG)
+        wrap.pack(fill="both", expand=True, pady=(2, 6))
+
+        def section(parent, title, subtitle=None, accent=ACCENT2):
+            f = tk.Frame(parent, bg=BG2, padx=18, pady=14,
+                         highlightthickness=1, highlightbackground=BORDER)
+            f.pack(fill="x", pady=(0, 12))
+            tk.Label(f, text=title, bg=BG2, fg=accent,
+                     font=(FONT_FAMILY, 13, "bold"),
+                     anchor="w").pack(fill="x")
+            if subtitle:
+                tk.Label(f, text=subtitle, bg=BG2, fg=TEXT2,
+                         font=(FONT_FAMILY, 10), anchor="w",
+                         wraplength=720, justify="left").pack(
+                    fill="x", pady=(0, 6))
+            return f
+
+        def lead_row(parent, swatch_color, lead_label, location):
+            row = tk.Frame(parent, bg=BG2, pady=3)
+            row.pack(fill="x")
+            sw = tk.Frame(row, bg=swatch_color, width=14, height=14,
+                          highlightthickness=1, highlightbackground="#0d0d20")
+            sw.pack(side="left", padx=(0, 10))
+            sw.pack_propagate(False)
+            tk.Label(row, text=lead_label, bg=BG2, fg=TEXT,
+                     font=(FONT_FAMILY, 11, "bold"), width=10,
+                     anchor="w").pack(side="left")
+            tk.Label(row, text="→", bg=BG2, fg=TEXT2,
+                     font=(FONT_FAMILY, 11)).pack(side="left", padx=8)
+            tk.Label(row, text=location, bg=BG2, fg=TEXT,
+                     font=(FONT_FAMILY, 11), anchor="w").pack(
+                side="left", fill="x", expand=True)
+
+        def bullets(parent, items, bg=BG2):
+            for it in items:
+                row = tk.Frame(parent, bg=bg)
+                row.pack(fill="x", anchor="w", pady=2)
+                tk.Label(row, text="•", bg=bg, fg=ACCENT2,
+                         font=(FONT_FAMILY, 11, "bold")).pack(
+                    side="left", padx=(2, 8), anchor="n")
+                tk.Label(row, text=it, bg=bg, fg=TEXT,
+                         font=(FONT_FAMILY, 11), wraplength=700,
+                         justify="left", anchor="w").pack(
+                    side="left", fill="x", expand=True)
+
+        # ── ECG section ──
+        ecg = section(
+            wrap,
+            "Heart (ECG)  —  3 hydrogel snap electrodes",
+            "Single-use. Clean each spot with an alcohol pad first.",
+            accent="#ff8a8a",
+        )
+        leads = tk.Frame(ecg, bg=BG2, pady=4)
+        leads.pack(fill="x")
+        lead_row(leads, "#e63946", "RED",    "Right collarbone")
+        lead_row(leads, "#f6c453", "YELLOW", "Left lower ribcage")
+        lead_row(leads, "#43a047", "GREEN",  "Right lower abdomen (ground)")
+        tk.Label(ecg, text="Tips", bg=BG2, fg=TEXT2,
+                 font=(FONT_FAMILY, 10, "bold"),
+                 anchor="w").pack(fill="x", pady=(10, 2))
+        bullets(ecg, [
+            "Press firmly for ~10 seconds after applying each pad.",
+            "Avoid hairy areas — shave a small patch if needed.",
+            "Route lead wires so they don't pull on the pads.",
+        ])
+
+        # ── EDA section ──
+        eda = section(
+            wrap,
+            "Sweat (EDA / GSR)  —  2 pre-gelled isotonic electrodes",
+            "Both pads go on the SAME hand — the participant's non-dominant one.",
+            accent="#7be0b9",
+        )
+        site = tk.Frame(eda, bg=BG2)
+        site.pack(fill="x")
+        tk.Label(site, text="Where",  bg=BG2, fg=TEXT2,
+                 font=(FONT_FAMILY, 10, "bold"), width=10,
+                 anchor="w").pack(side="left")
+        tk.Label(site,
+                 text="Thenar eminence  —  the fleshy mound at the base of the thumb. "
+                      "Place the two pads ~2 cm apart on this mound. Do not overlap.",
+                 bg=BG2, fg=TEXT, font=(FONT_FAMILY, 11),
+                 wraplength=620, justify="left",
+                 anchor="w").pack(side="left", fill="x", expand=True)
+        tk.Label(eda, text="Tips", bg=BG2, fg=TEXT2,
+                 font=(FONT_FAMILY, 10, "bold"),
+                 anchor="w").pack(fill="x", pady=(10, 2))
+        bullets(eda, [
+            "Use pre-gelled isotonic pads (or apply isotonic gel as the lab manual instructs).",
+            "Snug but not tight — never painful, never restricts movement.",
+            "Wait 30–60 seconds after applying so the gel wets the skin.",
+            "No hand lotion or creams before the session — they ruin contact.",
+        ])
+
+        # ── Safety footer ──
+        safety = tk.Frame(wrap, bg="#3a1f1f", padx=18, pady=12,
+                          highlightthickness=1, highlightbackground="#7a3030")
+        safety.pack(fill="x", pady=(0, 4))
+        tk.Label(safety, text="Safety", bg="#3a1f1f", fg="#ffb3b3",
+                 font=(FONT_FAMILY, 11, "bold"),
+                 anchor="w").pack(fill="x")
+        bullets(safety, [
+            "Remove electrodes immediately if the participant feels pain or burning.",
+            "Do NOT place electrodes on broken, irritated, or recently shaved-raw skin.",
+            "If you notice redness or itching from the adhesive, stop and tell the researcher.",
+        ], bg="#3a1f1f")
 
     def _step_signal(self):
-        tk.Label(
-            self._content,
-            text=("Click the button below to open the live signal monitor.\n"
-                  "Confirm both ECG and GSR show clean traces, then close it to continue."),
-            bg=BG, fg=TEXT2, font=(FONT_FAMILY, 10)
-        ).pack(anchor="w")
+        is_p = (self.mode == "participant")
+        if is_p:
+            card = tk.Frame(
+                self._content, bg=BG2, padx=22, pady=18,
+                highlightthickness=1, highlightbackground=BORDER,
+            )
+            card.pack(fill="x", pady=(0, 12))
+            tk.Label(
+                card,
+                text="Let's check the sensors.",
+                bg=BG2, fg=ACCENT2,
+                font=(FONT_FAMILY, 16, "bold"),
+                anchor="w",
+            ).pack(fill="x")
+            tk.Label(
+                card,
+                text=(
+                    "Press the big button below. A small window will open "
+                    "showing your heartbeat. Sit still and breathe normally "
+                    "for about 15 seconds.\n\n"
+                    "When both indicators turn GREEN, close that little "
+                    "window and you'll move on to the task."
+                ),
+                bg=BG2, fg=TEXT,
+                font=(FONT_FAMILY, 13),
+                justify="left", wraplength=720, anchor="w",
+            ).pack(fill="x", pady=(8, 0))
+        else:
+            tk.Label(
+                self._content,
+                text=("Click the button below to open the live signal monitor.\n"
+                      "Confirm both ECG and GSR show clean traces, then close it to continue."),
+                bg=BG, fg=TEXT2, font=(FONT_FAMILY, 10)
+            ).pack(anchor="w")
         self._next_btn.config(state="disabled")
 
         def open_sig_win():
@@ -1632,6 +1837,54 @@ class SetupWizard(tk.Frame):
     def _step_launch(self):
         """Guided experiment-launch checklist with inline bridge start and Pavlovia URL."""
         import webbrowser as _wb
+
+        # ── Participant Mode: hide all the technical details ──
+        if self.mode == "participant":
+            big = tk.Frame(
+                self._content, bg=BG2, padx=28, pady=28,
+                highlightthickness=1, highlightbackground=BORDER,
+            )
+            big.pack(fill="x", pady=(0, 16))
+            tk.Label(
+                big,
+                text="You're all set.",
+                bg=BG2, fg=SUCCESS,
+                font=(FONT_FAMILY, 22, "bold"),
+                anchor="w",
+            ).pack(fill="x")
+            tk.Label(
+                big,
+                text=(
+                    "When you're ready, press the big green button below. "
+                    "The task will open in your web browser.\n\n"
+                    "Read the on-screen instructions carefully. The task "
+                    "will tell you exactly what to do.\n\n"
+                    "If you need to stop at any time, just tell the researcher."
+                ),
+                bg=BG2, fg=TEXT,
+                font=(FONT_FAMILY, 14),
+                justify="left", wraplength=720, anchor="w",
+            ).pack(fill="x", pady=(10, 14))
+
+            # Big green Begin button — skips the wizard's normal Next.
+            begin_btn = tk.Button(
+                self._content,
+                text="▶  BEGIN  THE  TASK",
+                command=lambda: (
+                    self._next_btn.config(state="normal"),
+                    self.on_complete() if self.on_complete else None,
+                ),
+                bg=SUCCESS, fg="#ffffff",
+                activebackground="#2c8a3e", activeforeground="#ffffff",
+                font=(FONT_FAMILY, 18, "bold"),
+                relief="flat", bd=0,
+                padx=40, pady=18,
+                cursor="hand2",
+            )
+            begin_btn.pack(pady=10)
+            # The bottom-right Next button stays usable as a backup.
+            self._next_btn.config(state="normal", text="Begin →")
+            return
 
         self._next_btn.config(state="disabled")
 
