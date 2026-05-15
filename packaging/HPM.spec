@@ -39,18 +39,31 @@ binaries = nk_bins + sk_bins + sm_bins + sb_bins + mpl_bins
 hiddenimports = []
 hiddenimports += nk_hidden + sk_hidden + sm_hidden + sb_hidden + mpl_hidden
 hiddenimports += [
+    # Tkinter submodules — PyInstaller often misses ttk/messagebox/filedialog
+    "tkinter",
+    "tkinter.ttk",
+    "tkinter.messagebox",
+    "tkinter.filedialog",
+    "tkinter.font",
+    "tkinter.simpledialog",
+    "tkinter.scrolledtext",
+    # Hardware
     "serial.tools.list_ports",
     "serial.tools.list_ports_windows",
+    # WebSocket bridge
     "websockets",
     "websockets.legacy",
     "websockets.legacy.server",
     "asyncio",
+    # Scientific stack — many lazy submodules
     "scipy.signal",
     "scipy.interpolate",
     "scipy.ndimage",
     "scipy.stats",
     "cv2",
     "PIL._tkinter_finder",
+    "pandas",
+    "pandas._libs.tslibs.base",
 ]
 
 a = Analysis(
