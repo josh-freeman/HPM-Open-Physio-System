@@ -37,7 +37,8 @@ Linux may work from source but is not a primary support target.
 2. Install the desktop app for your platform (Windows `.exe` or macOS `.dmg`).
 3. Connect the HPM hardware via USB.
 4. Launch the app and select **Signal Quality Check** to verify ECG and GSR.
-5. When both indicators are green, you are ready to start an experiment.
+5. Apply electrodes — see [docs/electrodes.md](docs/electrodes.md) for placement, prep, and troubleshooting.
+6. When both indicators are green, you are ready to start an experiment.
 
 ## Quick start (developers / builders)
 
@@ -54,10 +55,10 @@ Linux may work from source but is not a primary support target.
 4. Run the GUI directly:
 
    ```bash
-   python hpm_gui.py
+   python desktop/gui/hpm_gui_v18.py
    ```
 
-5. To build standalone apps, see `desktop/packaging/`.
+5. To build standalone apps, see `packaging/` (Windows `.exe` instructions in `packaging/README_FOR_BUILDER.md`).
 
 ## Repository layout
 

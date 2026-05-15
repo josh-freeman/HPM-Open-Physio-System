@@ -5,17 +5,17 @@ PSYCHOPHYSIOLOGY PIPELINE v7.17
 Multi-Method rPPG + Full Diagnostic Suite
 --------------------------------------------------------------
 NEW in v7.16:
-1. GREEN-CHANNEL rPPG â€” baseline method
-2. CHROM rPPG â€” chrominance-based (de Haan & Jeanne 2013)
-3. POS rPPG â€” plane-orthogonal-to-skin (Wang et al. 2017)
-4. ECG-ADAPTIVE rPPG â€” LMS adaptive filter, ECG as ground truth
-5. Fig7 fully rebuilt â€” 4-method comparison panel
-6. Fig10 rPPG diagnostics â€” Bland-Altman x3, correlation x3, SNR,
+1. GREEN-CHANNEL rPPG — baseline method
+2. CHROM rPPG — chrominance-based (de Haan & Jeanne 2013)
+3. POS rPPG — plane-orthogonal-to-skin (Wang et al. 2017)
+4. ECG-ADAPTIVE rPPG — LMS adaptive filter, ECG as ground truth
+5. Fig7 fully rebuilt — 4-method comparison panel
+6. Fig10 rPPG diagnostics — Bland-Altman x3, correlation x3, SNR,
    raw signal traces, PSD comparison, temporal error, method ranking
-7. Phase defaulting â€” full session = Habituation when no acq boundary
-8. HR smoothing â€” rolling median + Gaussian
-9. Column name aliases â€” ArduinoTimems / GSRuS / ECGmV all accepted
-10. EDA DECONVOLUTION â€” replaces high-pass filter with biophysical sparse
+7. Phase defaulting — full session = Habituation when no acq boundary
+8. HR smoothing — rolling median + Gaussian
+9. Column name aliases — ArduinoTimems / GSRuS / ECGmV all accepted
+10. EDA DECONVOLUTION — replaces high-pass filter with biophysical sparse
     deconvolution (NeuroKit2 primary / Wiener+NNLS fallback). Eliminates
     filter-ringing sinusoidal artefact in phasic EDA. SCR peaks stored.
 """
@@ -321,7 +321,7 @@ class PhysiologyPipelineV7:
                 # â”€â”€ Biophysical deconvolution (v7.17) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 # Replaces high-pass filter which caused sinusoidal ringing.
                 # _eda_deconvolve() uses NK2 sparse deconvolution (primary)
-                # or Wiener+NNLS fallback â€” both are non-negative and
+                # or Wiener+NNLS fallback — both are non-negative and
                 # produce physiologically valid phasic waveforms.
                 phasic, tonic, scr_peaks = self._eda_deconvolve(eda_clean)
                 self.df['EDA_phasic'] = phasic
@@ -344,9 +344,9 @@ class PhysiologyPipelineV7:
 
         Returns
         -------
-        phasic    : ndarray  â€“ phasic EDA reconstructed from sparse driver
-        tonic     : ndarray  â€“ slow tonic component
-        scr_peaks : ndarray  â€“ sample indices of detected SCR onsets
+        phasic    : ndarray  — phasic EDA reconstructed from sparse driver
+        tonic     : ndarray  — slow tonic component
+        scr_peaks : ndarray  — sample indices of detected SCR onsets
         """
         n = len(eda_clean)
 
@@ -888,7 +888,7 @@ class PhysiologyPipelineV7:
                         if i == 1: ax.set_xlabel('Time from Stimulus (s)')
                         ax.set_ylabel('Change from Baseline')
                         ax.legend(loc='upper right', frameon=True, fontsize=9)
-        _caption(fig, "Figure 9. Average Event-Related Responses \u00b1 SEM (phasic EDA via biophysical deconvolution â€” sinusoidal filter artefact removed). Blue: CS+, Green: CS\u2212, Red: US.")
+        _caption(fig, "Figure 9. Average Event-Related Responses \u00b1 SEM (phasic EDA via biophysical deconvolution — sinusoidal filter artefact removed). Blue: CS+, Green: CS\u2212, Red: US.")
         plt.tight_layout(rect=[0, 0.12, 1, 1])
         plt.savefig(f'{self.output_prefix}_Fig9_AverageResponses.png', dpi=300); plt.close()
 

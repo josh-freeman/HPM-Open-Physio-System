@@ -70,16 +70,19 @@ This installs all required packages — numpy, scipy, neurokit2, pyserial, and o
 3. Plug the **GSR electrode cable** (3.5mm audio jack) into the CJMCU-6107 jack.  
    > ⚠️ **Important:** Seat the audio jack fully until it clicks. A partially-seated jack
    > causes a fixed ~40 µS false reading that does not change with finger contact.
-4. Place the electrodes on the participant's non-dominant hand (index and middle finger pads).
-5. Verify the ECG electrode pads are attached and connected to the Olimex shield.
+4. See [Electrode setup guide](electrodes.md).
 
 ---
 
 ## Step 4 — Launch the GUI
 
+From the repo root:
+
 ```bash
-python hpm_gui.py
+python desktop/gui/hpm_gui_v18.py
 ```
+
+> Linux users: install Tk first (`sudo apt install python3-tk`), then run the command above.
 
 The HPM GUI will open. Select the session type and participant ID, then proceed to
 **Signal Quality Check**.
@@ -113,13 +116,18 @@ The HPM GUI will open. Select the session type and participant ID, then proceed 
 
 ## Step 7 — Analyse the data
 
-Run the analysis pipeline on the saved CSV:
+Run the analysis pipeline against the saved physio CSV plus its markers CSV:
 
 ```bash
-python psychophysiology_pipeline_v7_17_2.py --input path/to/session_data.csv
+python desktop/gui/psychophysiology_pipeline_v7_17_2.py \
+    --physio path/to/physio_data.csv \
+    --markers path/to/markers.csv \
+    [--video path/to/video.mp4] \
+    [--output-dir analysis_output/]
 ```
 
-Output figures and a summary CSV will be saved alongside the input file.
+Output figures (`physiodata_Fig*.png`) and a summary CSV are written to
+`--output-dir` (default: alongside the input files).
 
 ---
 

@@ -175,7 +175,7 @@ class VideoRecorder(threading.Thread):
             actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             actual_fps = self.cap.get(cv2.CAP_PROP_FPS)
-            print(f"Camera initialized: {actual_w}x{actual_h} @ {actual_fps}fps (requested {self.fps}, flush=True)")
+            print(f"Camera initialized: {actual_w}x{actual_h} @ {actual_fps}fps (requested {self.fps})", flush=True)
             print(f"Frame timing: {self.fps} FPS target | {FRAME_INTERVAL_MS:.3f} ms/frame", flush=True)
             return True
         except Exception as e:

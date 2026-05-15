@@ -1,0 +1,51 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+.eggs/
+
+# Virtualenvs
+.venv/
+.venv-*/
+venv/
+env/
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
+packaging/Output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Session output (may contain participant data — must NEVER be committed)
+physiologging/
+sessions/
+analysis_output/
+outputs/
+*.csv.bak
+
+# Logs and tmp
+*.log
+*.tmp
+
+# Compiled docs
+*.pdf
+*.docx~
+~$*
+
+# Build artifacts from Inno Setup
+*.iss.bak

@@ -605,7 +605,7 @@ class StatusBar(tk.Frame):
     def set(self, key, text, color=TEXT2):
         if key not in self._items:
             lbl = tk.Label(self, text="", bg="#0d0d20", fg=color,
-                           font=(FONT_FAMILY, 9), padx=12)
+                           font=(FONT_FAMILY, 10), padx=12)
             lbl.pack(side="left")
             self._items[key] = lbl
         self._items[key].config(text=text, fg=color)
@@ -756,7 +756,9 @@ class SessionMonitor(tk.Frame):
     def _start_monitoring(self):
         if getattr(self, '_bridge_active', False):
             self._mon_status.config(
-                text="Bridge holds serial port — stop bridge first", fg=WARNING)
+                text="Cannot start live monitor while the bridge is recording. "
+                     "Stop the bridge first (Session Monitor → Stop Bridge).",
+                fg=WARNING)
             return
         port = self._port_var.get()
         if not port or port in ("No ports found", "pyserial not installed"):
@@ -1297,7 +1299,8 @@ class SignalQualityPage(tk.Frame):
             else:
                 self._ecg_ind._dot.config(fg=DANGER)
                 self._ecg_ind.winfo_children()[2].config(
-                    text="Weak signal", fg=DANGER
+                    text="Weak signal — re-seat the ECG pads and press firmly for 10 s.",
+                    fg=DANGER
                 )
                 self._ecg_ind._ok = False
 
@@ -1312,7 +1315,8 @@ class SignalQualityPage(tk.Frame):
             else:
                 self._gsr_ind._dot.config(fg=WARNING)
                 self._gsr_ind.winfo_children()[2].config(
-                    text="Check contacts", fg=WARNING
+                    text="Check contacts — re-wet the gel and press both pads to thumb.",
+                    fg=WARNING
                 )
 
         both = self._ecg_ind._ok and self._gsr_ind._ok
@@ -1392,6 +1396,27 @@ class SetupWizard(tk.Frame):
         self._next_btn = styled_button(nav, "Next →", self._next,
                                        style="primary", width=14)
         self._next_btn.pack(side="right")
+
+        # Keyboard shortcuts: Enter advances, Esc/Shift-Tab goes back.
+        # Scoped to the wizard frame so they don't interfere when the user
+        # is typing in entry/text widgets elsewhere.
+        try:
+            top = self.winfo_toplevel()
+            top.bind("<Return>", lambda e: self._next() if self._is_wizard_active() else None)
+            top.bind("<Escape>", lambda e: self._prev() if self._is_wizard_active() else None)
+        except Exception:
+            pass
+
+    def _is_wizard_active(self):
+        # Only fire shortcuts when the wizard tab is the visible one and
+        # focus isn't in a multi-line text widget (where Enter is content).
+        try:
+            focused = self.focus_get()
+            if isinstance(focused, tk.Text):
+                return False
+        except Exception:
+            pass
+        return True
 
     def _clear_content(self):
         for w in self._content.winfo_children():
@@ -1961,6 +1986,22 @@ class SetupWizard(tk.Frame):
             self._show_step(self._step)
 
     def _next(self):
+        # Validate Subject ID before leaving its step.
+        try:
+            current_title = self.steps[self._step][0]
+        except (IndexError, TypeError):
+            current_title = ""
+        if current_title in ("Subject ID", "Welcome"):
+            sid = ""
+            if hasattr(self, "subject_var") and self.subject_var is not None:
+                sid = self.subject_var.get().strip()
+            if not sid:
+                messagebox.showwarning(
+                    "Participant ID required",
+                    "Enter a Participant ID before continuing.\n\n"
+                    "This becomes the prefix on every file in the session folder."
+                )
+                return
         if self._step < len(self.steps) - 1:
             self._step += 1
             self._show_step(self._step)
@@ -2410,6 +2451,9 @@ class HPMApp(tk.Tk):
         self._build_log_tab()
         self._build_settings_tab()
 
+        # Apply initial mode visibility (hides RA tabs if launched in Participant).
+        self._apply_mode_visibility()
+
     def _rebuild_wizard(self):
         for w in self._tab_wizard.winfo_children():
             w.destroy()
@@ -2428,6 +2472,34 @@ class HPMApp(tk.Tk):
 
     def _on_mode_change(self):
         self._rebuild_wizard()
+        self._apply_mode_visibility()
+
+    def _apply_mode_visibility(self):
+        """Hide RA-only tabs when in Participant Mode so a participant
+        can't accidentally stop the bridge, edit settings, or read raw logs.
+        Idempotent — safe to call any time."""
+        if not hasattr(self, "_nb"):
+            return
+        ra_only = []
+        for attr in ("_tab_monitor_outer", "_tab_pavlovia_outer",
+                     "_tab_log_outer", "_tab_settings_outer"):
+            t = getattr(self, attr, None)
+            if t is not None:
+                ra_only.append(t)
+        is_participant = (self._mode.get() == "participant")
+        for tab in ra_only:
+            try:
+                if is_participant:
+                    self._nb.hide(tab)
+                else:
+                    self._nb.add(tab)  # re-adds if hidden; no-op if already shown
+            except Exception:
+                pass
+        # Always re-select the wizard tab after a mode flip.
+        try:
+            self._nb.select(self._tab_wizard_outer)
+        except Exception:
+            pass
 
     def _on_wizard_complete(self):
         self._do_launch()
@@ -2669,7 +2741,12 @@ class HPMApp(tk.Tk):
     def _do_launch(self):
         subject = self._subject_var.get().strip()
         if not subject:
-            subject = f"subj_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            messagebox.showwarning(
+                "Participant ID required",
+                "Enter a Participant ID before launching the session.\n\n"
+                "Go to Setup Wizard → Subject ID and fill in the field."
+            )
+            return
 
         base_dir = os.path.dirname(os.path.abspath(__file__))
         bridge_path = os.path.join(base_dir, BRIDGE_SCRIPT)
@@ -2678,14 +2755,16 @@ class HPMApp(tk.Tk):
             messagebox.showerror(
                 "Script Not Found",
                 f"Could not find:\n{bridge_path}\n\n"
-                f"Place {BRIDGE_SCRIPT} in the same folder as hpm_gui.py."
+                f"Place {BRIDGE_SCRIPT} in the same folder as this GUI ({os.path.basename(__file__)})."
             )
             return
 
         if self._bridge_mgr and self._bridge_mgr.is_running():
             messagebox.showinfo(
-                "Already Running",
-                "The bridge is already running.\nStop it first to restart."
+                "Bridge already running",
+                "The bridge is already recording.\n\n"
+                "To restart: open Session Monitor, click Stop Bridge, "
+                "then return here and press Launch again."
             )
             return
 
@@ -2713,8 +2792,13 @@ class HPMApp(tk.Tk):
             self._append_log(f"[{_now()}] Bridge started — subject: {subject}")
         else:
             messagebox.showerror(
-                "Launch Failed",
-                "Could not start the bridge script.\nCheck the Log tab for details."
+                "Launch failed",
+                "Could not start the bridge.\n\n"
+                "Try:\n"
+                "• Confirm the Arduino is plugged in and the green LED is on.\n"
+                "• Close any other program (Arduino IDE, Serial Monitor) using the port.\n"
+                "• Open the Log tab to see the exact Python error.\n"
+                "• See the Electrode setup guide if leads aren't connecting."
             )
 
     def _stop_bridge(self):
