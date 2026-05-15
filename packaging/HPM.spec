@@ -2,9 +2,10 @@
 # Build:  pyinstaller --noconfirm packaging\HPM.spec
 # Output: dist\HPM\HPM.exe  (one-folder bundle; ship the whole dist\HPM folder)
 #
-# One-file (single .exe) is possible by changing EXE(...) below to use
-# COLLECT-less mode, but cold-start is slower because PyInstaller has to
-# extract ~400MB to a temp dir on every launch. One-folder is recommended.
+# Strategy: heavy hammer. We collect_all() every scientific dependency rather
+# than hand-listing submodules, because PyInstaller's auto-detection misses
+# many lazy/dynamic imports in this stack. The bundle is bigger (~500 MB)
+# but we trade size for "it just works on the first launch on every machine."
 
 # ruff: noqa
 import os
@@ -12,21 +13,45 @@ from PyInstaller.utils.hooks import (
     collect_all,
     collect_data_files,
     collect_submodules,
+    collect_dynamic_libs,
 )
 
 block_cipher = None
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 GUI_DIR = os.path.join(ROOT, "desktop", "gui")
 
-# Heavy scientific deps need full collection so their data files travel with the bundle.
-nk_datas, nk_bins, nk_hidden = collect_all("neurokit2")
-sk_datas, sk_bins, sk_hidden = collect_all("sklearn")
-sm_datas, sm_bins, sm_hidden = collect_all("statsmodels")
-sb_datas, sb_bins, sb_hidden = collect_all("seaborn")
-mpl_datas, mpl_bins, mpl_hidden = collect_all("matplotlib")
 
-datas = []
-datas += nk_datas + sk_datas + sm_datas + sb_datas + mpl_datas
+def gather(name):
+    """Best-effort collect_all that doesn't crash if a package isn't installed."""
+    try:
+        return collect_all(name)
+    except Exception:
+        return [], [], []
+
+
+datas, binaries, hiddenimports = [], [], []
+
+# Every heavy scientific dep gets the full treatment. This is the most reliable
+# way to keep PyInstaller from missing a submodule on a fresh Windows machine.
+for pkg in (
+    "neurokit2",
+    "sklearn",
+    "statsmodels",
+    "seaborn",
+    "matplotlib",
+    "pandas",
+    "numpy",
+    "scipy",
+    "cv2",
+    "PIL",
+    "websockets",
+    "serial",
+):
+    d, b, h = gather(pkg)
+    datas += d
+    binaries += b
+    hiddenimports += h
+
 # Bundle the helper Python files so the launcher can dispatch into them.
 datas += [
     (os.path.join(GUI_DIR, "hpm_gui_v18.py"), "desktop/gui"),
@@ -34,12 +59,9 @@ datas += [
     (os.path.join(GUI_DIR, "psychophysiology_pipeline_v7_17_2.py"), "desktop/gui"),
 ]
 
-binaries = nk_bins + sk_bins + sm_bins + sb_bins + mpl_bins
-
-hiddenimports = []
-hiddenimports += nk_hidden + sk_hidden + sm_hidden + sb_hidden + mpl_hidden
+# Explicit hidden imports that PyInstaller's hooks don't always pick up.
 hiddenimports += [
-    # Tkinter submodules — PyInstaller often misses ttk/messagebox/filedialog
+    # Tkinter — first thing the GUI imports
     "tkinter",
     "tkinter.ttk",
     "tkinter.messagebox",
@@ -47,24 +69,30 @@ hiddenimports += [
     "tkinter.font",
     "tkinter.simpledialog",
     "tkinter.scrolledtext",
-    # Hardware
-    "serial.tools.list_ports",
-    "serial.tools.list_ports_windows",
-    # WebSocket bridge
-    "websockets",
+    # Matplotlib backend — must be hidden-imported or backend selection fails silently
+    "matplotlib.backends.backend_tkagg",
+    "matplotlib.backends.backend_agg",
+    # Asyncio loop policies on Windows
+    "asyncio",
+    "asyncio.windows_events",
+    "asyncio.proactor_events",
+    # Websockets server stack
     "websockets.legacy",
     "websockets.legacy.server",
-    "asyncio",
-    # Scientific stack — many lazy submodules
-    "scipy.signal",
-    "scipy.interpolate",
-    "scipy.ndimage",
-    "scipy.stats",
-    "cv2",
+    "websockets.server",
+    "websockets.protocol",
+    "websockets.exceptions",
+    # Serial port enumeration on Windows
+    "serial.tools.list_ports",
+    "serial.tools.list_ports_windows",
+    # Misc PyInstaller-on-scientific-Python pitfalls
     "PIL._tkinter_finder",
-    "pandas",
-    "pandas._libs.tslibs.base",
+    "pkg_resources.py2_warn",
+    "pkg_resources.markers",
 ]
+
+# Many tkinter installs need the binary collection too.
+binaries += collect_dynamic_libs("cv2")
 
 a = Analysis(
     [os.path.join(SPECPATH, "launcher.py")],
@@ -77,7 +105,7 @@ a = Analysis(
     excludes=[
         "PyQt5", "PyQt6", "PySide2", "PySide6",
         "IPython", "jupyter", "notebook",
-        "tornado", "zmq",
+        "tornado", "zmq", "pytest",
     ],
     noarchive=False,
     cipher=block_cipher,
@@ -95,7 +123,8 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,            # UPX trips Windows Defender; not worth it.
-    console=True,         # DEBUG: terminal window stays open so tracebacks are visible.
+    console=True,         # DEBUG: terminal stays open so we catch any remaining errors.
+                          # Flip to False for the final non-debug release.
     disable_windowed_traceback=False,
     icon=os.path.join(SPECPATH, "icon.ico") if os.path.exists(os.path.join(SPECPATH, "icon.ico")) else None,
     version=os.path.join(SPECPATH, "version_info.txt") if os.path.exists(os.path.join(SPECPATH, "version_info.txt")) else None,
